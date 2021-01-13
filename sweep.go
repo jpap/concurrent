@@ -4,12 +4,6 @@
 
 package concurrent
 
-import (
-	"runtime"
-	"sync"
-	"sync/atomic"
-)
-
 // RunSweepErr will use at most maxThreads (or equal to the number of CPUs on
 // the system if zero), to run func f concurrently, returning the first error
 // received.  If an error is reported, some func f may not be executed.
@@ -17,55 +11,21 @@ func RunSweepErr(count, maxThreads int, f func(index int) error) error {
 	if count == 0 {
 		return nil
 	}
-	if maxThreads == 0 {
-		maxThreads = runtime.NumCPU()
-	}
-	if maxThreads > count {
-		maxThreads = count
-	}
 
-	if maxThreads == 1 {
-		for i := 0; i < count; i++ {
-			if err := f(i); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	q := make(chan struct{}, maxThreads)
-
-	nerr := uint32(0)
-	var firstErr error
-	var wg sync.WaitGroup
-
+	jr := NewRunner(maxThreads)
 	for i := 0; i < count; i++ {
-		if atomic.LoadUint32(&nerr) > 0 {
+		if jr.Failures() > 0 {
 			break
 		}
-
-		// Block if we exceed maxThreads
-		q <- struct{}{}
-		wg.Add(1)
-
-		// Run job
-		go func(i int) {
-			err := f(i)
-			if err != nil {
-				if atomic.AddUint32(&nerr, 1) == 1 {
-					firstErr = err
-				}
-			}
-			// We're done
-			wg.Done()
-			<-q
-		}(i)
+		index := i
+		jr.RunErr(func() error {
+			return f(index)
+		})
 	}
-
-	wg.Wait()
-	close(q)
-
-	return firstErr
+	if jr.Finish() != count {
+		return jr.Errors()[0]
+	}
+	return nil
 }
 
 // RunSweep is like RunSweepErr, but without errors.
