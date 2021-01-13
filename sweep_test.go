@@ -1,4 +1,4 @@
-// Copyright 2019 John Papandriopoulos.  All rights reserved.
+// Copyright 2021 John Papandriopoulos.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE.md file.
 
@@ -13,7 +13,7 @@ import (
 	"go.jpap.org/concurrent"
 )
 
-func TestRunConcurrently(t *testing.T) {
+func TestRunSweep(t *testing.T) {
 	tests := []struct {
 		count   int
 		threads int
@@ -28,18 +28,16 @@ func TestRunConcurrently(t *testing.T) {
 		{3, 10},
 	}
 
-	for _, tc := range tests {
+	for i, tc := range tests {
 		var mux sync.Mutex
 		b := bit.New()
-		concurrent.Run(tc.count, tc.threads, func(m, n int) {
+		concurrent.RunSweep(tc.count, tc.threads, func(i int) {
 			mux.Lock()
-			for i := m; i < n; i++ {
-				b.Add(i)
-			}
+			b.Add(i)
 			mux.Unlock()
 		})
 		if c := b.Size(); c != tc.count {
-			t.Errorf("failed: got %d, expected %d (threads: %d): %v", c, tc.count, tc.threads, b)
+			t.Errorf("tc #%d: got %d, expected %d (threads: %d): %v", i, c, tc.count, tc.threads, b)
 		}
 	}
 }

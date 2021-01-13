@@ -9,15 +9,16 @@ package concurrent // import "go.jpap.org/concurrent"
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
 
-// Run the given func f concurrently using up to the specified number of
+// RunGroupedErr the given func f concurrently using up to the specified number of
 // maxThreads, or equal to the number of CPUs on the system if passed zero.
 // The number of jobs is given by count, and the range of jobs [m, n) are
 // passed to the callback f.
-func Run(count, maxThreads int, f func(m, n int)) {
+func RunGroupedErr(count, maxThreads int, f func(m, n int) error) error {
 	if count == 0 {
-		return
+		return nil
 	}
 	if maxThreads == 0 {
 		maxThreads = runtime.NumCPU()
@@ -27,8 +28,7 @@ func Run(count, maxThreads int, f func(m, n int)) {
 	}
 
 	if maxThreads == 1 {
-		f(0, count)
-		return
+		return f(0, count)
 	}
 
 	countPerThread := count / maxThreads
@@ -36,14 +36,28 @@ func Run(count, maxThreads int, f func(m, n int)) {
 	n := countPerThread
 
 	q := make(chan struct{}, maxThreads)
+
+	nerr := uint32(0)
+	var firstErr error
 	var wg sync.WaitGroup
+
 	for i := 0; i < count; i += countPerThread {
-		// Queue job, blocking if we exceed maxThreads
+		if atomic.LoadUint32(&nerr) > 0 {
+			break
+		}
+
+		// Block if we exceed maxThreads
 		q <- struct{}{}
-		// Queue job
 		wg.Add(1)
+
+		// Run job
 		go func(a, b int) {
-			f(a, b)
+			err := f(a, b)
+			if err != nil {
+				if atomic.AddUint32(&nerr, 1) == 1 {
+					firstErr = err
+				}
+			}
 			// We're done
 			wg.Done()
 			<-q
@@ -55,7 +69,17 @@ func Run(count, maxThreads int, f func(m, n int)) {
 			n = count
 		}
 	}
-	// Wait for all outstanding jobs to complete
+
 	wg.Wait()
 	close(q)
+
+	return firstErr
+}
+
+// RunGrouped is like RunGroupedErr but without errors.
+func RunGrouped(count, maxThreads int, f func(m, n int)) {
+	RunGroupedErr(count, maxThreads, func(m, n int) error {
+		f(m, n)
+		return nil
+	})
 }
