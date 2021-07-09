@@ -8,8 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/yourbasic/bit"
-
 	"go.jpap.org/concurrent"
 )
 
@@ -30,16 +28,16 @@ func TestRunGrouped(t *testing.T) {
 
 	for _, tc := range tests {
 		var mux sync.Mutex
-		b := bit.New()
+		x := make(map[int]bool)
 		concurrent.RunGrouped(tc.count, tc.threads, func(m, n int) {
 			mux.Lock()
 			for i := m; i < n; i++ {
-				b.Add(i)
+				x[i] = true
 			}
 			mux.Unlock()
 		})
-		if c := b.Size(); c != tc.count {
-			t.Errorf("failed: got %d, expected %d (threads: %d): %v", c, tc.count, tc.threads, b)
+		if c := len(x); c != tc.count {
+			t.Errorf("failed: got %d, expected %d (threads: %d): %v", c, tc.count, tc.threads, x)
 		}
 	}
 }

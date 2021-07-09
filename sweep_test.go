@@ -8,8 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/yourbasic/bit"
-
 	"go.jpap.org/concurrent"
 )
 
@@ -30,14 +28,14 @@ func TestRunSweep(t *testing.T) {
 
 	for i, tc := range tests {
 		var mux sync.Mutex
-		b := bit.New()
+		x := make(map[int]bool)
 		concurrent.RunSweep(tc.count, tc.threads, func(i int) {
 			mux.Lock()
-			b.Add(i)
+			x[i] = true
 			mux.Unlock()
 		})
-		if c := b.Size(); c != tc.count {
-			t.Errorf("tc #%d: got %d, expected %d (threads: %d): %v", i, c, tc.count, tc.threads, b)
+		if c := len(x); c != tc.count {
+			t.Errorf("tc #%d: got %d, expected %d (threads: %d): %v", i, c, tc.count, tc.threads, x)
 		}
 	}
 }
