@@ -1,4 +1,4 @@
-Copyright © 2019, John Papandriopoulos
+Copyright 2019 John Papandriopoulos
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
