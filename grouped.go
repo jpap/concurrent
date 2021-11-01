@@ -18,6 +18,11 @@ func RunGroupedErr(count, maxThreads int, f func(m, n int) error) error {
 	if count == 0 {
 		return nil
 	}
+	if count == 1 {
+		// Run it on the current goroutine.
+		return f(0, 1)
+	}
+
 	if maxThreads == 0 {
 		maxThreads = runtime.NumCPU()
 	}

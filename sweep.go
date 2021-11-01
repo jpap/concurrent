@@ -11,6 +11,10 @@ func RunSweepErr(count, maxThreads int, f func(index int) error) error {
 	if count == 0 {
 		return nil
 	}
+	if count == 1 {
+		// Run it on the current goroutine.
+		return f(0)
+	}
 
 	jr := NewRunner(maxThreads)
 	for i := 0; i < count; i++ {
